@@ -121,12 +121,14 @@ export function TallyScreen({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-6 pb-8">
       <header className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="font-display text-2xl font-medium tracking-tight">Herd Check</h1>
           <p className="mt-1 text-sm text-muted-foreground">{formatHeaderDate()}</p>
+          <div className="mt-2">
+            <StatusChip online={online} offlineReady={offlineReady || install.offlineReady} />
+          </div>
         </div>
         <div className="flex items-center gap-1">
-          <StatusChip online={online} offlineReady={offlineReady || install.offlineReady} />
           <IconButton
             label="Open camera to read an eartag"
             onClick={() => {

@@ -123,37 +123,35 @@ export function CameraScan({
         </button>
       </header>
 
-      <div className="relative mx-3 mt-2 min-h-0 flex-1 overflow-hidden rounded-3xl bg-black">
-        {phase === "denied" || phase === "unsupported" ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-            <Keyboard className="size-8 opacity-80" />
-            <p className="text-sm text-primary-foreground/80">
-              {phase === "unsupported"
-                ? "This device has no camera. Type the eartag below."
-                : error}
-            </p>
+      {phase === "denied" || phase === "unsupported" ? (
+        <div className="mx-4 mt-6 rounded-3xl bg-black/25 px-5 py-8 text-center">
+          <Keyboard className="mx-auto size-8 opacity-80" />
+          <p className="mt-3 text-sm text-primary-foreground/80">
+            {phase === "unsupported"
+              ? "This device has no camera. Type the eartag below."
+              : error || "Camera permission was denied. Type the eartag instead."}
+          </p>
+        </div>
+      ) : (
+        <div className="relative mx-3 mt-2 min-h-0 flex-1 overflow-hidden rounded-3xl bg-black">
+          <video
+            ref={videoRef}
+            className="h-full w-full object-cover"
+            playsInline
+            muted
+            autoPlay
+          />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="h-[28%] w-[62%] rounded-2xl border-2 border-primary-foreground/90 shadow-[0_0_0_999px_rgba(28,24,20,0.35)]" />
           </div>
-        ) : (
-          <>
-            <video
-              ref={videoRef}
-              className="h-full w-full object-cover"
-              playsInline
-              muted
-              autoPlay
-            />
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-[28%] w-[62%] rounded-2xl border-2 border-primary-foreground/90 shadow-[0_0_0_999px_rgba(28,24,20,0.35)]" />
+          {phase === "reading" ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-leather/50 text-lg">
+              Reading tag…
             </div>
-            {phase === "reading" ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-leather/50 text-lg">
-                Reading tag…
-              </div>
-            ) : null}
-          </>
-        )}
-        <canvas ref={workRef} className="hidden" />
-      </div>
+          ) : null}
+          <canvas ref={workRef} className="hidden" />
+        </div>
+      )}
 
       <div className="px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {phase === "live" ? (
@@ -183,7 +181,9 @@ export function CameraScan({
             {raw ? (
               <p className="text-xs text-primary-foreground/65">Raw read: {raw || "—"}</p>
             ) : null}
-            {error ? <p className="text-sm text-primary-foreground/80">{error}</p> : null}
+            {error && phase !== "denied" && phase !== "unsupported" ? (
+              <p className="text-sm text-primary-foreground/80">{error}</p>
+            ) : null}
             <label className="block">
               <span className="mb-1.5 block text-sm">Eartag</span>
               <TextInput
