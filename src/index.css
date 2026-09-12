@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Figtree";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/figtree.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 500 600;
+  font-display: swap;
+  src: url("/fonts/fraunces.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500 600;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono.woff2") format("woff2");
+}
+
+@theme {
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --color-background: #f1ebe0;
+  --color-foreground: #1c1814;
+  --color-card: #faf6ee;
+  --color-card-foreground: #1c1814;
+  --color-primary: #2f5d42;
+  --color-primary-foreground: #f7f3ea;
+  --color-secondary: #e8e0d2;
+  --color-secondary-foreground: #1c1814;
+  --color-muted: #e4ddd0;
+  --color-muted-foreground: #6f675c;
+  --color-destructive: #8f3d32;
+  --color-destructive-foreground: #faf6ee;
+  --color-border: #d9d0c1;
+  --color-ring: #2f5d42;
+  --color-leather: #3d3429;
+  --shadow-border: 0px 0px 0px 1px #1c181412, 0px 1px 2px -1px #1c18140f,
+    0px 2px 4px 0px #1c18140a;
+  --shadow-lift: 0px 0px 0px 1px #1c181414, 0px 12px 32px -16px #1c181447;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+}
+
+html,
+body,
+#root {
+  min-height: 100dvh;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-tag {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
