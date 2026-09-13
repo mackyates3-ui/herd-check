@@ -5,13 +5,14 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { useHerd } from "../hooks/useHerd";
 import { useInstall } from "../hooks/useInstall";
 import { useOnline } from "../hooks/useOnline";
 import { useToasts } from "../hooks/useToasts";
-import { herdToCsv, downloadCsv } from "../lib/csv";
+import { downloadCsv, formatImportSummary, herdToCsv } from "../lib/csv";
 import { formatHeaderDate } from "../lib/dates";
 import { warmupOcr } from "../lib/ocr";
 import {
@@ -25,6 +26,7 @@ import { CameraScan } from "./CameraScan";
 import { CowForm } from "./CowForm";
 import { CowRow } from "./CowRow";
 import { CowSheet } from "./CowSheet";
+import { ImportCsvSheet } from "./ImportCsvSheet";
 import { InstallBanner, StatusChip } from "./InstallBanner";
 import { Toasts } from "./Toasts";
 import { Button, IconButton, Sheet } from "./ui";
@@ -50,6 +52,7 @@ export function TallyScreen({
   const { toasts, push, dismiss } = useToasts();
   const [menuOpen, setMenuOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [selected, setSelected] = useState<Cow | null>(null);
   const [locating, setLocating] = useState<string[]>([]);
@@ -143,7 +146,7 @@ export function TallyScreen({
               <Ellipsis className="size-5" />
             </IconButton>
             {menuOpen ? (
-              <div className="absolute top-12 right-0 z-20 w-52 overflow-hidden rounded-2xl bg-card py-1 shadow-[var(--shadow-lift)]">
+              <div className="absolute top-12 right-0 z-20 w-56 overflow-hidden rounded-2xl bg-card py-1 shadow-[var(--shadow-lift)]">
                 <button
                   type="button"
                   aria-hidden
@@ -161,11 +164,37 @@ export function TallyScreen({
                 <MenuItem
                   onClick={() => {
                     setMenuOpen(false);
+                    void (async () => {
+                      try {
+                        const result = await herd.loadRanchHerd();
+                        push(formatImportSummary(result, "replace"));
+                      } catch (error) {
+                        push(
+                          error instanceof Error ? error.message : "Could not load ranch herd",
+                          "error",
+                        );
+                      }
+                    })();
+                  }}
+                >
+                  Load ranch herd
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setMenuOpen(false);
                     herd.loadSampleHerd();
                     push("Sample herd loaded");
                   }}
                 >
                   Load sample herd
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setImportOpen(true);
+                  }}
+                >
+                  <Upload className="size-4" /> Import CSV
                 </MenuItem>
                 <MenuItem
                   onClick={() => {
@@ -246,10 +275,24 @@ export function TallyScreen({
         {herd.cows.length === 0 ? (
           <EmptyState
             onAdd={() => setAddOpen(true)}
+            onRanch={() => {
+              void (async () => {
+                try {
+                  const result = await herd.loadRanchHerd();
+                  push(formatImportSummary(result, "replace"));
+                } catch (error) {
+                  push(
+                    error instanceof Error ? error.message : "Could not load ranch herd",
+                    "error",
+                  );
+                }
+              })();
+            }}
             onSample={() => {
               herd.loadSampleHerd();
               push("Sample herd loaded");
             }}
+            onImport={() => setImportOpen(true)}
           />
         ) : visible.length === 0 ? (
           <p className="rounded-2xl bg-card px-4 py-8 text-center text-sm text-muted-foreground">
@@ -329,6 +372,16 @@ export function TallyScreen({
         </div>
       </Sheet>
 
+      <ImportCsvSheet
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImport={(text, mode) => {
+          const result = herd.importCsvText(text, mode);
+          push(formatImportSummary(result, mode));
+          return result;
+        }}
+      />
+
       <CowSheet
         cow={selected ? herd.cows.find((c) => c.id === selected.id) ?? selected : null}
         sightings={herd.sightings}
@@ -395,16 +448,32 @@ function Progress({ counted, total }: { counted: number; total: number }) {
   );
 }
 
-function EmptyState({ onAdd, onSample }: { onAdd: () => void; onSample: () => void }) {
+function EmptyState({
+  onAdd,
+  onRanch,
+  onSample,
+  onImport,
+}: {
+  onAdd: () => void;
+  onRanch: () => void;
+  onSample: () => void;
+  onImport: () => void;
+}) {
   return (
     <div className="mt-6 rounded-3xl bg-card px-6 py-10 text-center shadow-[var(--shadow-border)]">
       <h2 className="font-display text-xl">No tags yet</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Add an eartag to start today's count, or load a sample herd to try the flow.
+        Add an eartag, load the ranch's Active herd, import a CSV, or try the sample list.
       </p>
       <div className="mt-5 flex flex-col gap-2">
         <Button size="lg" onClick={onAdd}>
           Add an eartag
+        </Button>
+        <Button size="lg" variant="leather" onClick={onRanch}>
+          Load ranch herd
+        </Button>
+        <Button variant="outline" onClick={onImport}>
+          Import CSV
         </Button>
         <Button variant="ghost" onClick={onSample}>
           Load a sample herd

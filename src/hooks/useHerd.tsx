@@ -17,6 +17,13 @@ import {
   replaceHerd,
   type HerdDatabase,
 } from "../db/database";
+import {
+  applyHerdImport,
+  parseHerdCsv,
+  RANCH_HERD_URL,
+  type AppliedImport,
+  type ImportMode,
+} from "../lib/csv";
 import { isToday } from "../lib/dates";
 import { readGeo } from "../lib/geo";
 import { createId } from "../lib/ids";
@@ -43,6 +50,8 @@ interface HerdApi extends HerdState {
   removeSighting: (id: string) => void;
   attachGeo: (id: string) => Promise<boolean>;
   loadSampleHerd: () => void;
+  loadRanchHerd: () => Promise<AppliedImport & { skipped: number }>;
+  importCsvText: (text: string, mode: ImportMode) => AppliedImport & { skipped: number };
   clearHerd: () => void;
 }
 
@@ -233,28 +242,49 @@ export function HerdProvider({ children }: { children: ReactNode }) {
     [db, state.sightings],
   );
 
+  const commitHerd = useCallback(
+    (cows: Cow[], sightings: Sighting[]) => {
+      setState((prev) => ({
+        ...prev,
+        cows,
+        sightings,
+        filter: "all",
+        query: "",
+      }));
+      if (db) void replaceHerd(db, cows, sightings);
+    },
+    [db],
+  );
+
   const loadSampleHerd = useCallback(() => {
     const sample = createSampleHerd();
-    setState((prev) => ({
-      ...prev,
-      cows: sample.cows,
-      sightings: sample.sightings,
-      filter: "all",
-      query: "",
-    }));
-    if (db) void replaceHerd(db, sample.cows, sample.sightings);
-  }, [db]);
+    commitHerd(sample.cows, sample.sightings);
+  }, [commitHerd]);
+
+  const importCsvText = useCallback(
+    (text: string, mode: ImportMode): AppliedImport & { skipped: number } => {
+      const parsed = parseHerdCsv(text);
+      if (!parsed.ok) throw new Error(parsed.error);
+      const applied =
+        mode === "replace"
+          ? applyHerdImport([], [], parsed.rows, "replace")
+          : applyHerdImport(state.cows, state.sightings, parsed.rows, "merge");
+      commitHerd(applied.cows, applied.sightings);
+      return { ...applied, skipped: parsed.skipped };
+    },
+    [commitHerd, state.cows, state.sightings],
+  );
+
+  const loadRanchHerd = useCallback(async () => {
+    const response = await fetch(RANCH_HERD_URL);
+    if (!response.ok) throw new Error("Could not load the ranch herd file.");
+    const text = await response.text();
+    return importCsvText(text, "replace");
+  }, [importCsvText]);
 
   const clearHerd = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      cows: [],
-      sightings: [],
-      filter: "all",
-      query: "",
-    }));
-    if (db) void replaceHerd(db, [], []);
-  }, [db]);
+    commitHerd([], []);
+  }, [commitHerd]);
 
   const api = useMemo<HerdApi>(
     () => ({
@@ -269,12 +299,16 @@ export function HerdProvider({ children }: { children: ReactNode }) {
       removeSighting: removeSightingRecord,
       attachGeo,
       loadSampleHerd,
+      loadRanchHerd,
+      importCsvText,
       clearHerd,
     }),
     [
       addCow,
       attachGeo,
       clearHerd,
+      importCsvText,
+      loadRanchHerd,
       loadSampleHerd,
       markSeen,
       removeCow,
