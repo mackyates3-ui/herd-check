@@ -12,9 +12,9 @@ No sign-in. No required server. Herd and sighting data stay on the phone.
 - Cow history with times and a relative location map
 - Add / edit / remove eartags (duplicate tags blocked)
 - Search and filter: all / missing / counted today
-- Sample herd loader and clear-herd reset
+- Sample herd loader, ranch Active-herd loader, and clear-herd reset
 - Camera eartag recognition with manual correction
-- CSV export of the herd and sightings
+- CSV import and export of the herd
 - Installable PWA that keeps working after the first visit with no network
 
 GPS and camera are optional. A failed location fix never blocks a count.
@@ -83,7 +83,20 @@ IndexedDB database `herd-check` (version 1):
 - `sightings` — `id`, `cowId`, `at`, `lat`, `lng`, `accuracy`
 - `meta` — seed flag so a cleared herd stays empty on the next launch
 
-The first visit loads a small sample herd (West Texas–ish demo pins) so you can try the tally immediately. **Clear herd** empties it. **Load sample herd** puts the demo animals back.
+The first visit loads a small sample herd (West Texas–ish demo pins) so you can try the tally immediately. **Clear herd** empties it. **Load sample herd** puts the demo animals back. **Load ranch herd** replaces that demo list with the bundled Active animals from `public/herd-active.csv` (183 unique eartags). Sold, dead, and other non-Active animals are not included.
+
+### Import a CSV
+
+Menu → **Import CSV**, or **Import CSV** on the empty herd screen.
+
+1. Choose **Replace herd** (wipes cows and sightings, then loads the file) or **Merge** (adds tags that are not already in the herd).
+2. Pick a `.csv` file from the phone. After import, the app shows how many animals were added, updated, or skipped.
+
+The file needs a `tag` column (`ear_tag` also works). `name` and `notes` are optional. A CattleMax-style export is accepted: `ear_tag` maps to tag, `name` stays name, and notes are built from `animal_type`, `sex`, `electronic_id`, and `status` when those columns are present.
+
+**Merge** keeps existing sighting history. If a tag is already in the herd, name and notes update only when the CSV has a value; blank cells leave the current fields alone. Extra copies of the same tag in one file, and rows with no tag, are skipped.
+
+**Replace herd** and **Load ranch herd** both set the seeded flag so the first-run sample herd does not come back on the next launch.
 
 ## Stack
 

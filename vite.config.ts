@@ -17,6 +17,7 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: [
         "favicon.svg",
+        "herd-active.csv",
         "icons/icon-192.png",
         "icons/icon-512.png",
         "icons/icon-maskable-512.png",
@@ -62,7 +63,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,wasm,gz}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,wasm,gz,csv}"],
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
         navigateFallback: "/index.html",
         cleanupOutdatedCaches: true,
