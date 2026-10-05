@@ -2,6 +2,7 @@ import {
   Camera,
   Download,
   Ellipsis,
+  Mic,
   Plus,
   Search,
   Trash2,
@@ -19,10 +20,12 @@ import {
   countedTodayCount,
   cowCountedToday,
   filterHerd,
+  findCowByTag,
   lastSighting,
 } from "../lib/tags";
 import type { Cow, HerdFilter } from "../types";
 import { CameraScan } from "./CameraScan";
+import { VoiceSheet } from "./VoiceSheet";
 import { CowForm } from "./CowForm";
 import { CowRow } from "./CowRow";
 import { CowSheet } from "./CowSheet";
@@ -54,6 +57,7 @@ export function TallyScreen({
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [selected, setSelected] = useState<Cow | null>(null);
   const [locating, setLocating] = useState<string[]>([]);
   const [bannerOpen, setBannerOpen] = useState(() => {
@@ -70,12 +74,13 @@ export function TallyScreen({
     [herd.cows, herd.sightings, herd.filter, herd.query],
   );
 
-  const recordCount = async (cow: Cow) => {
+  const recordCount = async (cow: Cow, announce = true) => {
     setLocating((ids) => [...ids, cow.id]);
     try {
-      if (navigator.vibrate) navigator.vibrate(12);
-      await herd.markSeen(cow.id);
-      push(`Counted ${cow.tag}`);
+      if (announce && navigator.vibrate) navigator.vibrate(12);
+      const sighting = await herd.markSeen(cow.id);
+      if (announce) push(`Counted ${cow.tag}`);
+      return sighting.id;
     } finally {
       setLocating((ids) => ids.filter((id) => id !== cow.id));
     }
@@ -96,6 +101,17 @@ export function TallyScreen({
       void toggleCount(cow);
     } catch (error) {
       push(error instanceof Error ? error.message : "Could not add tag", "error");
+    }
+  };
+
+  const addAndCountQuiet = async (tag: string) => {
+    try {
+      const existing = findCowByTag(herd.cows, tag);
+      const cow = existing ?? herd.addCow({ tag });
+      return await recordCount(cow, false);
+    } catch (error) {
+      push(error instanceof Error ? error.message : "Could not add tag", "error");
+      return undefined;
     }
   };
 
@@ -317,11 +333,19 @@ export function TallyScreen({
         )}
       </main>
 
-      <div className="sticky bottom-0 mt-4 flex gap-2 bg-background/90 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+      <div className="sticky bottom-0 mt-4 flex items-end gap-2 bg-background/90 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
         <Button size="lg" className="flex-1" onClick={() => setAddOpen(true)}>
           <Plus className="size-5" />
-          Add eartag
+          Add
         </Button>
+        <button
+          type="button"
+          aria-label="Log tags by voice"
+          className="inline-flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-lift)]"
+          onClick={() => setVoiceOpen(true)}
+        >
+          <Mic className="size-7" />
+        </button>
         <Button
           size="lg"
           variant="leather"
@@ -421,6 +445,20 @@ export function TallyScreen({
         onClose={() => setCameraOpen(false)}
         onCount={(cow) => void recordCount(cow)}
         onAddAndCount={addAndCount}
+      />
+
+      <VoiceSheet
+        open={voiceOpen}
+        cows={herd.cows}
+        counted={counted}
+        total={herd.cows.length}
+        onClose={() => setVoiceOpen(false)}
+        onCount={(cow) => recordCount(cow, false)}
+        onAddAndCount={addAndCountQuiet}
+        onUndo={(id) => {
+          herd.removeSighting(id);
+          push("Undid that count");
+        }}
       />
 
       <Toasts toasts={toasts} onDismiss={dismiss} />

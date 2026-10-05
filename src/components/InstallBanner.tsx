@@ -33,7 +33,7 @@ export function InstallBanner({
           <p className="mt-1 text-sm text-muted-foreground">
             {iosHint
               ? "On iPhone: Share → Add to Home Screen. After the first load, tallies stay on this phone with no signal."
-              : "Install Herd Check so today’s tally is here without a signal. Camera reading also stays on-device."}
+              : "Install Herd Check so today’s tally is here without a signal. Voice and camera reading stay on this phone."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {canInstall ? (

@@ -10,14 +10,15 @@
     "preview": "vite preview --host 0.0.0.0 --port 4173",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "node scripts/copy-ocr-assets.mjs"
+    "postinstall": "node scripts/copy-ocr-assets.mjs && node scripts/copy-voice-assets.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",
     "lucide-react": "^0.544.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "tesseract.js": "^6.0.1"
+    "tesseract.js": "^6.0.1",
+    "vosk-browser": "^0.0.8"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.13",
