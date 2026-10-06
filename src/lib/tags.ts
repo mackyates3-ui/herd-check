@@ -37,12 +37,17 @@ export function isDuplicateTag(cows: Cow[], tag: string, exceptId?: string): boo
   );
 }
 
+function sightingCounts(sighting: Sighting): boolean {
+  const updated = sighting.updatedAt ?? sighting.at;
+  return sighting.deletedAt == null || sighting.deletedAt < updated;
+}
+
 export function cowCountedToday(
   sightings: Sighting[],
   cowId: string,
   now = Date.now(),
 ): boolean {
-  return sightings.some((s) => s.cowId === cowId && isToday(s.at, now));
+  return sightings.some((s) => s.cowId === cowId && sightingCounts(s) && isToday(s.at, now));
 }
 
 export function lastSighting(
@@ -50,7 +55,7 @@ export function lastSighting(
   cowId: string,
 ): Sighting | undefined {
   return sightings
-    .filter((s) => s.cowId === cowId)
+    .filter((s) => s.cowId === cowId && sightingCounts(s))
     .sort((a, b) => b.at - a.at)[0];
 }
 
@@ -77,6 +82,8 @@ export function filterHerd(
 ): Cow[] {
   return cows
     .filter((cow) => {
+      const updated = cow.updatedAt ?? cow.createdAt;
+      if (cow.deletedAt != null && cow.deletedAt >= updated) return false;
       if (!matchesQuery(cow, query)) return false;
       const counted = cowCountedToday(sightings, cow.id, now);
       if (filter === "counted") return counted;

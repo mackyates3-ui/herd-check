@@ -93,6 +93,15 @@ export async function deleteSighting(db: HerdDatabase, id: string): Promise<void
   await db.delete("sightings", id);
 }
 
+export async function getMeta<T>(db: HerdDatabase, key: string): Promise<T | null> {
+  const row = await db.get("meta", key);
+  return row ? (row.value as T) : null;
+}
+
+export async function setMeta(db: HerdDatabase, key: string, value: unknown): Promise<void> {
+  await db.put("meta", { key, value });
+}
+
 export async function resetDatabase(): Promise<void> {
   await deleteDB(DB_NAME);
 }

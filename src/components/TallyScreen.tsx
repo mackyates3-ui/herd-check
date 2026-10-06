@@ -2,31 +2,37 @@ import {
   Camera,
   Download,
   Ellipsis,
+  Mic,
   Plus,
   Search,
+  Share2,
   Trash2,
   Upload,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useHerd } from "../hooks/useHerd";
 import { useInstall } from "../hooks/useInstall";
 import { useOnline } from "../hooks/useOnline";
 import { useToasts } from "../hooks/useToasts";
 import { downloadCsv, formatImportSummary, herdToCsv } from "../lib/csv";
 import { formatHeaderDate } from "../lib/dates";
+import { syncStatusText } from "../lib/sync/status";
 import { warmupOcr } from "../lib/ocr";
 import {
   countedTodayCount,
   cowCountedToday,
   filterHerd,
+  findCowByTag,
   lastSighting,
 } from "../lib/tags";
 import type { Cow, HerdFilter } from "../types";
 import { CameraScan } from "./CameraScan";
+import { VoiceSheet } from "./VoiceSheet";
 import { CowForm } from "./CowForm";
 import { CowRow } from "./CowRow";
 import { CowSheet } from "./CowSheet";
 import { ImportCsvSheet } from "./ImportCsvSheet";
+import { SyncSheet } from "./SyncSheet";
 import { InstallBanner, StatusChip } from "./InstallBanner";
 import { Toasts } from "./Toasts";
 import { Button, IconButton, Sheet } from "./ui";
@@ -54,6 +60,9 @@ export function TallyScreen({
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [joinPrefill, setJoinPrefill] = useState("");
   const [selected, setSelected] = useState<Cow | null>(null);
   const [locating, setLocating] = useState<string[]>([]);
   const [bannerOpen, setBannerOpen] = useState(() => {
@@ -70,12 +79,13 @@ export function TallyScreen({
     [herd.cows, herd.sightings, herd.filter, herd.query],
   );
 
-  const recordCount = async (cow: Cow) => {
+  const recordCount = async (cow: Cow, announce = true) => {
     setLocating((ids) => [...ids, cow.id]);
     try {
-      if (navigator.vibrate) navigator.vibrate(12);
-      await herd.markSeen(cow.id);
-      push(`Counted ${cow.tag}`);
+      if (announce && navigator.vibrate) navigator.vibrate(12);
+      const sighting = await herd.markSeen(cow.id);
+      if (announce) push(`Counted ${cow.tag}`);
+      return sighting.id;
     } finally {
       setLocating((ids) => ids.filter((id) => id !== cow.id));
     }
@@ -98,6 +108,24 @@ export function TallyScreen({
       push(error instanceof Error ? error.message : "Could not add tag", "error");
     }
   };
+
+  const addAndCountQuiet = async (tag: string) => {
+    try {
+      const existing = findCowByTag(herd.cows, tag);
+      const cow = existing ?? herd.addCow({ tag });
+      return await recordCount(cow, false);
+    } catch (error) {
+      push(error instanceof Error ? error.message : "Could not add tag", "error");
+      return undefined;
+    }
+  };
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("join");
+    if (!code) return;
+    setJoinPrefill(code);
+    setSyncOpen(true);
+  }, []);
 
   const dismissBanner = () => {
     setBannerOpen(false);
@@ -129,6 +157,21 @@ export function TallyScreen({
           <p className="mt-1 text-sm text-muted-foreground">{formatHeaderDate()}</p>
           <div className="mt-2">
             <StatusChip online={online} offlineReady={offlineReady || install.offlineReady} />
+            {herd.syncCode ? (
+              <button
+                type="button"
+                className="mt-1 block text-left text-xs text-muted-foreground"
+                onClick={() => setSyncOpen(true)}
+              >
+                {syncStatusText({
+                  linked: true,
+                  online,
+                  pending: herd.syncPending,
+                  lastSyncedAt: herd.lastSyncedAt,
+                  error: herd.syncError,
+                })}
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -153,6 +196,14 @@ export function TallyScreen({
                   className="fixed inset-0 z-[-1] cursor-default"
                   onClick={() => setMenuOpen(false)}
                 />
+                <MenuItem
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setSyncOpen(true);
+                  }}
+                >
+                  <Share2 className="size-4" /> Share tally
+                </MenuItem>
                 <MenuItem
                   onClick={() => {
                     setMenuOpen(false);
@@ -317,11 +368,19 @@ export function TallyScreen({
         )}
       </main>
 
-      <div className="sticky bottom-0 mt-4 flex gap-2 bg-background/90 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+      <div className="sticky bottom-0 mt-4 flex items-end gap-2 bg-background/90 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
         <Button size="lg" className="flex-1" onClick={() => setAddOpen(true)}>
           <Plus className="size-5" />
-          Add eartag
+          Add
         </Button>
+        <button
+          type="button"
+          aria-label="Log tags by voice"
+          className="inline-flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-lift)]"
+          onClick={() => setVoiceOpen(true)}
+        >
+          <Mic className="size-7" />
+        </button>
         <Button
           size="lg"
           variant="leather"
@@ -421,6 +480,22 @@ export function TallyScreen({
         onClose={() => setCameraOpen(false)}
         onCount={(cow) => void recordCount(cow)}
         onAddAndCount={addAndCount}
+      />
+
+      <SyncSheet open={syncOpen} prefill={joinPrefill} onClose={() => setSyncOpen(false)} />
+
+      <VoiceSheet
+        open={voiceOpen}
+        cows={herd.cows}
+        counted={counted}
+        total={herd.cows.length}
+        onClose={() => setVoiceOpen(false)}
+        onCount={(cow) => recordCount(cow, false)}
+        onAddAndCount={addAndCountQuiet}
+        onUndo={(id) => {
+          herd.removeSighting(id);
+          push("Undid that count");
+        }}
       />
 
       <Toasts toasts={toasts} onDismiss={dismiss} />
