@@ -9,3 +9,4 @@ public/tesseract/*
 !public/tesseract/.gitkeep
 public/vosk/*
 !public/vosk/.gitkeep
+data/

@@ -5,16 +5,18 @@ import {
   Mic,
   Plus,
   Search,
+  Share2,
   Trash2,
   Upload,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useHerd } from "../hooks/useHerd";
 import { useInstall } from "../hooks/useInstall";
 import { useOnline } from "../hooks/useOnline";
 import { useToasts } from "../hooks/useToasts";
 import { downloadCsv, formatImportSummary, herdToCsv } from "../lib/csv";
 import { formatHeaderDate } from "../lib/dates";
+import { syncStatusText } from "../lib/sync/status";
 import { warmupOcr } from "../lib/ocr";
 import {
   countedTodayCount,
@@ -30,6 +32,7 @@ import { CowForm } from "./CowForm";
 import { CowRow } from "./CowRow";
 import { CowSheet } from "./CowSheet";
 import { ImportCsvSheet } from "./ImportCsvSheet";
+import { SyncSheet } from "./SyncSheet";
 import { InstallBanner, StatusChip } from "./InstallBanner";
 import { Toasts } from "./Toasts";
 import { Button, IconButton, Sheet } from "./ui";
@@ -58,6 +61,8 @@ export function TallyScreen({
   const [importOpen, setImportOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [joinPrefill, setJoinPrefill] = useState("");
   const [selected, setSelected] = useState<Cow | null>(null);
   const [locating, setLocating] = useState<string[]>([]);
   const [bannerOpen, setBannerOpen] = useState(() => {
@@ -115,6 +120,13 @@ export function TallyScreen({
     }
   };
 
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("join");
+    if (!code) return;
+    setJoinPrefill(code);
+    setSyncOpen(true);
+  }, []);
+
   const dismissBanner = () => {
     setBannerOpen(false);
     try {
@@ -145,6 +157,21 @@ export function TallyScreen({
           <p className="mt-1 text-sm text-muted-foreground">{formatHeaderDate()}</p>
           <div className="mt-2">
             <StatusChip online={online} offlineReady={offlineReady || install.offlineReady} />
+            {herd.syncCode ? (
+              <button
+                type="button"
+                className="mt-1 block text-left text-xs text-muted-foreground"
+                onClick={() => setSyncOpen(true)}
+              >
+                {syncStatusText({
+                  linked: true,
+                  online,
+                  pending: herd.syncPending,
+                  lastSyncedAt: herd.lastSyncedAt,
+                  error: herd.syncError,
+                })}
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -169,6 +196,14 @@ export function TallyScreen({
                   className="fixed inset-0 z-[-1] cursor-default"
                   onClick={() => setMenuOpen(false)}
                 />
+                <MenuItem
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setSyncOpen(true);
+                  }}
+                >
+                  <Share2 className="size-4" /> Share tally
+                </MenuItem>
                 <MenuItem
                   onClick={() => {
                     setMenuOpen(false);
@@ -446,6 +481,8 @@ export function TallyScreen({
         onCount={(cow) => void recordCount(cow)}
         onAddAndCount={addAndCount}
       />
+
+      <SyncSheet open={syncOpen} prefill={joinPrefill} onClose={() => setSyncOpen(false)} />
 
       <VoiceSheet
         open={voiceOpen}

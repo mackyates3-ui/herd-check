@@ -6,6 +6,10 @@ export interface Cow {
   name: string;
   notes: string;
   createdAt: number;
+  /** When this phone last changed the tag, name, or notes. */
+  updatedAt?: number;
+  /** Set when the animal was removed. A later edit clears the removal. */
+  deletedAt?: number | null;
 }
 
 export interface Sighting {
@@ -15,6 +19,8 @@ export interface Sighting {
   lat: number | null;
   lng: number | null;
   accuracy: number | null;
+  updatedAt?: number;
+  deletedAt?: number | null;
 }
 
 export interface GeoFix {
